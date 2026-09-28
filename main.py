@@ -4,6 +4,7 @@ import requests
 import re
 from datetime import date, timedelta
 
+
 # =========================================================
 # 페이지 설정
 # =========================================================
@@ -14,12 +15,18 @@ st.set_page_config(
     layout="wide"
 )
 
+
+# =========================================================
+# 제목
+# =========================================================
+
 st.title("🍱 학교 급식 데이터 분석")
 
 st.write(
     "급식에 가장 자주 등장하는 식재료와 "
     "가장 많이 나온 반찬 TOP 5를 여러 학교와 비교합니다."
 )
+
 
 # =========================================================
 # 학교 정보
@@ -40,10 +47,16 @@ SCHOOLS = {
     }
 }
 
-API_URL = "https://open.neis.go.kr/hub/mealServiceDietInfo"
 
 # =========================================================
-# NEIS API 인증키
+# NEIS API
+# =========================================================
+
+API_URL = "https://open.neis.go.kr/hub/mealServiceDietInfo"
+
+
+# =========================================================
+# API KEY 확인
 # =========================================================
 
 try:
@@ -51,17 +64,24 @@ try:
 except Exception:
     NEIS_KEY = ""
 
+
 if not NEIS_KEY:
     st.error("NEIS API 인증키가 설정되지 않았습니다.")
+
     st.info(
-        "Streamlit Cloud에서 "
-        "Settings → Secrets에 다음과 같이 입력하세요.\n\n"
+        "Streamlit Cloud → Settings → Secrets에서 "
+        "다음과 같이 입력해주세요."
+    )
+
+    st.code(
         'NEIS_KEY = "발급받은_API_키"'
     )
+
     st.stop()
 
+
 # =========================================================
-# 학교 선택
+# 사이드바 - 학교 선택
 # =========================================================
 
 st.sidebar.header("🏫 학교 선택")
@@ -72,6 +92,7 @@ selected_schools = st.sidebar.multiselect(
     default=["송탄고등학교"]
 )
 
+
 if len(selected_schools) < 3:
 
     st.sidebar.warning(
@@ -79,13 +100,14 @@ if len(selected_schools) < 3:
     )
 
     st.warning(
-        "학교를 3곳 모두 선택해주세요."
+        "학교 3곳을 모두 선택해주세요."
     )
 
     st.stop()
 
+
 # =========================================================
-# 날짜 선택
+# 사이드바 - 날짜 선택
 # =========================================================
 
 st.sidebar.header("📅 조회 기간")
@@ -100,6 +122,7 @@ default_start = date(
 
 default_end = today - timedelta(days=1)
 
+
 start_date = st.sidebar.date_input(
     "시작 날짜",
     value=default_start
@@ -110,6 +133,7 @@ end_date = st.sidebar.date_input(
     value=default_end
 )
 
+
 if start_date > end_date:
 
     st.error(
@@ -117,6 +141,7 @@ if start_date > end_date:
     )
 
     st.stop()
+
 
 # =========================================================
 # NEIS 급식 데이터 가져오기
@@ -152,15 +177,19 @@ def get_meal_data(
 
     data = response.json()
 
-    # ---------------------------------------------
-    # NEIS에서 오류를 반환한 경우
-    # ---------------------------------------------
+
+    # -----------------------------------------------------
+    # NEIS 오류 확인
+    # -----------------------------------------------------
 
     if "RESULT" in data:
 
         result = data["RESULT"]
 
-        code = result.get("CODE", "")
+        code = result.get(
+            "CODE",
+            ""
+        )
 
         message = result.get(
             "MESSAGE",
@@ -168,16 +197,20 @@ def get_meal_data(
         )
 
         if code != "INFO-000":
+
             raise Exception(
                 f"NEIS API 오류: {code} - {message}"
             )
 
-    # ---------------------------------------------
-    # 데이터가 없는 경우
-    # ---------------------------------------------
+
+    # -----------------------------------------------------
+    # 급식 데이터가 없는 경우
+    # -----------------------------------------------------
 
     if "mealServiceDietInfo" not in data:
+
         return pd.DataFrame()
+
 
     try:
 
@@ -185,12 +218,19 @@ def get_meal_data(
             "mealServiceDietInfo"
         ][1]["row"]
 
-    except (KeyError, IndexError, TypeError):
+    except (
+        KeyError,
+        IndexError,
+        TypeError
+    ):
 
         return pd.DataFrame()
+
 
     if not rows:
+
         return pd.DataFrame()
+
 
     result_df = pd.DataFrame(rows)
 
@@ -200,7 +240,7 @@ def get_meal_data(
 
 
 # =========================================================
-# 선택한 학교들의 급식 데이터 가져오기
+# 여러 학교 데이터 가져오기
 # =========================================================
 
 all_data = []
@@ -229,6 +269,7 @@ for i, school_name in enumerate(
             end_date.strftime("%Y%m%d")
         )
 
+
         if not school_df.empty:
 
             all_data.append(
@@ -239,16 +280,20 @@ for i, school_name in enumerate(
 
             st.warning(
                 f"{school_name}: "
-                "해당 기간의 급식 데이터가 없습니다."
+                "선택한 기간에 급식 데이터가 없습니다."
             )
+
 
     except Exception as e:
 
         st.error(
-            f"{school_name} 데이터를 불러오지 못했습니다."
+            f"{school_name}의 데이터를 불러오지 못했습니다."
         )
 
-        st.code(str(e))
+        st.code(
+            str(e)
+        )
+
 
     progress.progress(
         int(
@@ -258,24 +303,32 @@ for i, school_name in enumerate(
         )
     )
 
+
 progress.empty()
 
+
 # =========================================================
-# 전체 데이터 확인
+# 데이터가 없는 경우
 # =========================================================
 
 if not all_data:
 
     st.error(
-        "급식 데이터를 하나도 불러오지 못했습니다."
+        "급식 데이터를 불러오지 못했습니다."
     )
 
     st.stop()
+
+
+# =========================================================
+# 데이터 합치기
+# =========================================================
 
 df = pd.concat(
     all_data,
     ignore_index=True
 )
+
 
 # =========================================================
 # 날짜 정리
@@ -287,7 +340,15 @@ df["날짜"] = pd.to_datetime(
     errors="coerce"
 )
 
-df["요일"] = df["날짜"].dt.day_name()
+
+# =========================================================
+# 요일
+# =========================================================
+
+df["요일"] = df[
+    "날짜"
+].dt.day_name()
+
 
 weekday_map = {
     "Monday": "월",
@@ -299,17 +360,29 @@ weekday_map = {
     "Sunday": "일"
 }
 
-df["요일"] = df["요일"].map(
-    weekday_map
-)
+
+df["요일"] = df[
+    "요일"
+].map(weekday_map)
+
+
+# =========================================================
+# 급식 종류
+# =========================================================
 
 df["급식구분"] = df[
     "MMEAL_SC_NM"
 ]
 
+
+# =========================================================
+# 메뉴
+# =========================================================
+
 df["메뉴"] = df[
     "DDISH_NM"
 ].fillna("")
+
 
 # =========================================================
 # 메뉴 분리
@@ -317,13 +390,15 @@ df["메뉴"] = df[
 
 menu_rows = []
 
+
 for _, row in df.iterrows():
 
     menus = str(
         row["메뉴"]
     )
 
-    # <br> 태그 처리
+
+    # <br> 태그를 줄바꿈으로 변경
     menus = re.sub(
         r"<br\s*/?>",
         "\n",
@@ -331,19 +406,24 @@ for _, row in df.iterrows():
         flags=re.IGNORECASE
     )
 
-    # 기타 HTML 태그 제거
+
+    # HTML 태그 제거
     menus = re.sub(
         r"<[^>]+>",
         "",
         menus
     )
 
+
+    # 메뉴별 분리
     for menu in menus.split("\n"):
 
         menu = menu.strip()
 
+
         if not menu:
             continue
+
 
         # 알레르기 번호가 들어 있는 괄호 제거
         clean_menu = re.sub(
@@ -352,7 +432,9 @@ for _, row in df.iterrows():
             menu
         )
 
+
         clean_menu = clean_menu.strip()
+
 
         if clean_menu:
 
@@ -366,25 +448,29 @@ for _, row in df.iterrows():
                 }
             )
 
+
 menu_df = pd.DataFrame(
     menu_rows
 )
 
+
 if menu_df.empty:
 
     st.error(
-        "분석할 메뉴가 없습니다."
+        "분석할 메뉴 데이터가 없습니다."
     )
 
     st.stop()
 
+
 # =========================================================
-# 메뉴 이름 정리
+# 메뉴 이름 정리 함수
 # =========================================================
 
 def clean_food_name(name):
 
     name = str(name)
+
 
     # 괄호 제거
     name = re.sub(
@@ -393,6 +479,7 @@ def clean_food_name(name):
         name
     )
 
+
     # 숫자 제거
     name = re.sub(
         r"\d+",
@@ -400,20 +487,25 @@ def clean_food_name(name):
         name
     )
 
+
     # 특수문자 제거
-    for char in [
+    special_chars = [
         "*",
         "♥",
         "★",
         "☆",
         "ㆍ",
         "·"
-    ]:
+    ]
+
+
+    for char in special_chars:
 
         name = name.replace(
             char,
             ""
         )
+
 
     return name.strip()
 
@@ -423,8 +515,9 @@ menu_df["정리된메뉴"] = (
     .apply(clean_food_name)
 )
 
+
 # =========================================================
-# 반찬이 아닌 메뉴
+# 반찬이 아닌 메뉴 목록
 # =========================================================
 
 NOT_SIDE_DISH = [
@@ -462,6 +555,10 @@ NOT_SIDE_DISH = [
 ]
 
 
+# =========================================================
+# 반찬 여부 판단
+# =========================================================
+
 def is_side_dish(menu):
 
     text = str(menu)
@@ -480,14 +577,19 @@ menu_df["반찬여부"] = (
     .apply(is_side_dish)
 )
 
+
 side_dish_df = menu_df[
-    menu_df["반찬여부"]
+    (
+        menu_df["반찬여부"]
+        == True
+    )
     &
     (
         menu_df["정리된메뉴"]
         != ""
     )
 ].copy()
+
 
 # =========================================================
 # 식재료 목록
@@ -555,18 +657,24 @@ INGREDIENTS = [
     "김치"
 ]
 
-# 이름 통일
+
+# =========================================================
+# 식재료 이름 통일
+# =========================================================
+
 INGREDIENT_NORMALIZE = {
     "쇠고기": "소고기",
     "달걀": "계란",
     "메추리알": "계란"
 }
 
+
 # =========================================================
 # 식재료 TOP 5 계산
 # =========================================================
 
 ingredient_results = []
+
 
 for school_name in selected_schools:
 
@@ -575,7 +683,9 @@ for school_name in selected_schools:
         == school_name
     ]
 
+
     counts = {}
+
 
     for menu in school_menus[
         "정리된메뉴"
@@ -592,6 +702,7 @@ for school_name in selected_schools:
                     )
                 )
 
+
                 counts[
                     normalized
                 ] = (
@@ -602,13 +713,18 @@ for school_name in selected_schools:
                     + 1
                 )
 
+
     sorted_counts = sorted(
         counts.items(),
         key=lambda x: x[1],
         reverse=True
-    )[:5]
+    )
 
-    for ingredient, count in sorted_counts:
+
+    top5 = sorted_counts[:5]
+
+
+    for ingredient, count in top5:
 
         ingredient_results.append(
             {
@@ -618,15 +734,18 @@ for school_name in selected_schools:
             }
         )
 
+
 ingredient_all_df = pd.DataFrame(
     ingredient_results
 )
+
 
 # =========================================================
 # 반찬 TOP 5 계산
 # =========================================================
 
 side_results = []
+
 
 for school_name in selected_schools:
 
@@ -635,6 +754,7 @@ for school_name in selected_schools:
         == school_name
     ]
 
+
     counts = (
         school_side[
             "정리된메뉴"
@@ -642,6 +762,7 @@ for school_name in selected_schools:
         .value_counts()
         .head(5)
     )
+
 
     for menu, count in counts.items():
 
@@ -653,18 +774,21 @@ for school_name in selected_schools:
             }
         )
 
+
 side_all_df = pd.DataFrame(
     side_results
 )
 
+
 # =========================================================
-# 선택한 학교 표시
+# 선택 학교 표시
 # =========================================================
 
 st.success(
     "현재 비교 학교: "
     + ", ".join(selected_schools)
 )
+
 
 st.info(
     "분석 기간: "
@@ -673,7 +797,9 @@ st.info(
     + end_date.strftime("%Y-%m-%d")
 )
 
+
 st.divider()
+
 
 # =========================================================
 # 분석 대상
@@ -681,9 +807,11 @@ st.divider()
 
 st.header("📊 분석 대상")
 
+
 cols = st.columns(
     len(selected_schools)
 )
+
 
 for i, school_name in enumerate(
     selected_schools
@@ -694,6 +822,7 @@ for i, school_name in enumerate(
         == school_name
     ]
 
+
     with cols[i]:
 
         st.metric(
@@ -701,20 +830,24 @@ for i, school_name in enumerate(
             f"{school_data['날짜'].nunique()}일"
         )
 
+
 st.divider()
+
 
 # =========================================================
 # 질문 1
 # =========================================================
 
 st.header(
-    "🥕 질문 1. 급식에 가장 자주 등장하는 식재료는?"
+    "🥕 질문 1. 급식에 가장 자주 등장하는 식재료 TOP 5는?"
 )
+
 
 st.write(
     "급식 메뉴 이름에 포함된 식재료를 세어 "
     "학교별 TOP 5를 비교합니다."
 )
+
 
 if ingredient_all_df.empty:
 
@@ -730,6 +863,7 @@ else:
             f"🏫 {school_name}"
         )
 
+
         school_ingredient = (
             ingredient_all_df[
                 ingredient_all_df["학교"]
@@ -742,11 +876,14 @@ else:
             .reset_index(drop=True)
         )
 
+
         school_ingredient.index += 1
+
 
         school_ingredient[
             "순위"
         ] = school_ingredient.index
+
 
         school_ingredient = (
             school_ingredient[
@@ -758,19 +895,22 @@ else:
             ]
         )
 
+
         st.dataframe(
             school_ingredient,
             hide_index=True,
             use_container_width=True
         )
 
-    # -----------------------------------------
-    # 학교별 식재료 비교 그래프
-    # -----------------------------------------
+
+    # -----------------------------------------------------
+    # 학교별 비교
+    # -----------------------------------------------------
 
     st.subheader(
         "📈 학교별 식재료 TOP 5 비교"
     )
+
 
     ingredient_chart = (
         ingredient_all_df
@@ -782,9 +922,11 @@ else:
         .fillna(0)
     )
 
+
     st.bar_chart(
         ingredient_chart
     )
+
 
 st.info(
     "※ 식재료 등장 횟수는 메뉴명에 해당 식재료 "
@@ -792,7 +934,9 @@ st.info(
     "실제 조리에 사용된 식재료의 양을 의미하지 않습니다."
 )
 
+
 st.divider()
+
 
 # =========================================================
 # 질문 2
@@ -802,10 +946,12 @@ st.header(
     "🍽️ 질문 2. 가장 많이 나온 반찬 TOP 5는?"
 )
 
+
 st.write(
     "밥, 국, 찌개, 후식, 음료 등을 제외하고 "
     "반찬으로 분류된 메뉴의 등장 횟수를 비교합니다."
 )
+
 
 if side_all_df.empty:
 
@@ -821,6 +967,7 @@ else:
             f"🏫 {school_name}"
         )
 
+
         school_side = (
             side_all_df[
                 side_all_df["학교"]
@@ -833,11 +980,14 @@ else:
             .reset_index(drop=True)
         )
 
+
         school_side.index += 1
+
 
         school_side[
             "순위"
         ] = school_side.index
+
 
         school_side = (
             school_side[
@@ -849,19 +999,22 @@ else:
             ]
         )
 
+
         st.dataframe(
             school_side,
             hide_index=True,
             use_container_width=True
         )
 
-    # -----------------------------------------
-    # 학교별 반찬 비교 그래프
-    # -----------------------------------------
+
+    # -----------------------------------------------------
+    # 학교별 비교
+    # -----------------------------------------------------
 
     st.subheader(
         "📈 학교별 반찬 TOP 5 비교"
     )
+
 
     side_chart = (
         side_all_df
@@ -873,11 +1026,14 @@ else:
         .fillna(0)
     )
 
+
     st.bar_chart(
         side_chart
     )
 
+
 st.divider()
+
 
 # =========================================================
 # 학교별 1위
@@ -887,9 +1043,11 @@ st.header(
     "🏆 학교별 1위"
 )
 
+
 result_cols = st.columns(
     len(selected_schools)
 )
+
 
 for i, school_name in enumerate(
     selected_schools
@@ -901,13 +1059,18 @@ for i, school_name in enumerate(
             school_name
         )
 
+
+        # -------------------------------------------------
         # 식재료 1위
+        # -------------------------------------------------
+
         school_ingredient = (
             ingredient_all_df[
                 ingredient_all_df["학교"]
                 == school_name
             ]
         )
+
 
         if not school_ingredient.empty:
 
@@ -920,6 +1083,7 @@ for i, school_name in enumerate(
                 .iloc[0]
             )
 
+
             st.metric(
                 "🥕 식재료 1위",
                 top_ingredient[
@@ -928,13 +1092,18 @@ for i, school_name in enumerate(
                 f"{int(top_ingredient['등장횟수'])}회"
             )
 
+
+        # -------------------------------------------------
         # 반찬 1위
+        # -------------------------------------------------
+
         school_side = (
             side_all_df[
                 side_all_df["학교"]
                 == school_name
             ]
         )
+
 
         if not school_side.empty:
 
@@ -947,6 +1116,7 @@ for i, school_name in enumerate(
                 .iloc[0]
             )
 
+
             st.metric(
                 "🍽️ 반찬 1위",
                 top_side[
@@ -955,33 +1125,67 @@ for i, school_name in enumerate(
                 f"{int(top_side['등장횟수'])}회"
             )
 
+
 st.divider()
+
+
+# =========================================================
+# 수정하기
+# =========================================================
+
+st.header(
+    "🛠️ 수정하기"
+)
+
+
+st.write(
+    """
+처음에는 한 학교의 급식만 분석하려고 했지만,
+학교마다 급식에 자주 사용되는 식재료와 반찬이
+다른지 비교해 보고 싶었다.
+
+그래서 송탄고등학교를 기본값으로 설정하고,
+이충고등학교와 효명고등학교를 추가하여
+3개 학교의 급식 데이터를 한 번에 비교할 수
+있도록 수정했다.
+
+또한 원하는 날짜를 직접 선택하여
+같은 기간의 급식 데이터를 비교할 수 있도록 했다.
+"""
+)
+
+
+st.divider()
+
 
 # =========================================================
 # 발견하기
 # =========================================================
 
 st.header(
-    "🔎 이 데이터로 알 수 있는 것"
+    "🔎 발견하기"
 )
+
 
 st.write(
-    "급식 메뉴를 데이터로 분석하면 "
-    "어떤 식재료와 반찬이 반복해서 등장하는지 "
-    "횟수로 확인할 수 있습니다."
+    """
+급식 메뉴를 데이터로 분석하면 평소에는 눈으로만
+보던 급식의 특징을 등장 횟수라는 숫자로
+확인할 수 있다는 것을 발견했다.
+
+또한 여러 학교를 같은 기간에 비교하면
+학교마다 자주 나오는 식재료와 반찬이
+다를 수 있다는 것도 알게 되었다.
+
+단순히 급식 메뉴를 보는 것보다 데이터를 표와
+그래프로 나타내면 학교별 차이를 더 쉽게
+확인할 수 있었다.
+"""
 )
 
-st.write(
-    "또한 같은 기간의 여러 학교를 비교하면 "
-    "학교마다 자주 등장하는 식재료와 반찬의 "
-    "차이를 확인할 수 있습니다."
-)
 
-st.caption(
-    "분석 기준: NEIS 학교급식식단정보의 메뉴명. "
-    "식재료는 메뉴명에 나타난 단어를 기준으로 "
-    "분류합니다."
-)
+st.divider()
+
 
 # =========================================================
 # 원본 데이터
@@ -999,6 +1203,7 @@ with st.expander(
         "정리된메뉴"
     ]
 
+
     st.dataframe(
         menu_df[
             display_columns
@@ -1006,3 +1211,17 @@ with st.expander(
         hide_index=True,
         use_container_width=True
     )
+
+
+# =========================================================
+# 하단 안내
+# =========================================================
+
+st.caption(
+    "데이터 출처: NEIS 학교급식식단정보"
+)
+
+st.caption(
+    "식재료 등장 횟수는 메뉴명에 포함된 단어를 "
+    "기준으로 계산하므로 실제 사용량과는 다를 수 있습니다."
+)
